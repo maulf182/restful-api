@@ -7,11 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // 🔐 Register user
+    /**
+     * 🔐 Register user baru
+     */
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -39,19 +40,24 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // 🔐 Login user
+    /**
+     * 🔐 Login dan generate token
+     */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required'
         ]);
 
-        if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Email atau password salah'], 401);
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Email atau password salah'
+            ], 401);
         }
 
-        $user = Auth::user();
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
@@ -61,23 +67,30 @@ class AuthController extends Controller
         ]);
     }
 
-    // 📋 List semua user
+    /**
+     * 📋 List semua user
+     */
     public function index()
     {
         return response()->json(User::all(), 200);
     }
 
-    // 👁 Lihat user tertentu
+    /**
+     * 👁 Lihat user tertentu
+     */
     public function show($id)
     {
         $user = User::find($id);
         if (!$user) {
             return response()->json(['message' => 'User tidak ditemukan'], 404);
         }
+
         return response()->json($user, 200);
     }
 
-    // ➕ Tambah user baru
+    /**
+     * ➕ Tambah user baru (admin style)
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -99,7 +112,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'User berhasil dibuat', 'user' => $user], 201);
     }
 
-    // ✏️ Update user
+    /**
+     * ✏️ Update data user
+     */
     public function update(Request $request, $id)
     {
         $user = User::find($id);
@@ -108,20 +123,20 @@ class AuthController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'nama' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'password' => 'sometimes|nullable|string|min:6|confirmed'
+            'nama' => 'nullable|string|max:255',
+            'email' => 'nullable|email|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:6|confirmed'
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        if ($request->filled('nama')) {
+        if ($request->has('nama')) {
             $user->name = $request->nama;
         }
 
-        if ($request->filled('email')) {
+        if ($request->has('email')) {
             $user->email = $request->email;
         }
 
@@ -134,8 +149,9 @@ class AuthController extends Controller
         return response()->json(['message' => 'User berhasil diupdate', 'user' => $user], 200);
     }
 
-
-    // ❌ Hapus user
+    /**
+     * ❌ Hapus user
+     */
     public function destroy($id)
     {
         $user = User::find($id);
